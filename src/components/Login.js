@@ -1,29 +1,87 @@
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import Header from './Header'
+import { checkValidateData } from '../utils/validate';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile} from "firebase/auth";
+import { auth } from '../utils/firebase';
+
+import { useDispatch } from 'react-redux';
+import { adduser } from '../utils/userSlice';
+import { BG_URL } from '../utils/contants';
 
 function Login() {
     const [isSignInForm, setIsSignInForm] = useState(true);
+    const [errMessage, setErrorMessage] = useState(null);
+
+    const dispatch = useDispatch();
+  
+
+    const name = useRef(null);
+    const email = useRef(null);
+    const password = useRef(null);
 
     const toggleSignInForm =  () =>{
         setIsSignInForm(!isSignInForm);
+    }
+
+    const handleButtonClick = () => {
+       const message =  checkValidateData(email.current.value, password.current.value);
+       setErrorMessage(message);
+
+       if(message) return;
+
+       if(!isSignInForm)
+       {
+            createUserWithEmailAndPassword(auth, email.current.value, password.current.value)
+            .then((userCredential) => {
+                const user = userCredential.user;
+                updateProfile(user, {
+                    displayName : name.current.value
+                }).then(() => {
+                    const {uid, email, displayName} = auth.currentUser;
+                    dispatch(adduser({uid : uid, email:email, displayName : displayName}));
+
+                    console.log(user);
+                   
+                })
+                .catch((error) => {
+
+                })
+                
+            })
+            .catch((error) => {
+                setErrorMessage(error.code +  " - " + error.message);
+            })
+       }
+       else
+       {
+            signInWithEmailAndPassword(auth, email.current.value, password.current.value)
+            .then((userCredential) => {
+                const user = userCredential.user;
+               
+            })
+            .catch((error) => {
+                setErrorMessage(error.code +  " - " + error.message);
+            })
+       }
     }
   return (
     <div >
     <Header/>
     <div className='absolute'>
-        <img src='https://assets.nflxext.com/ffe/siteui/vlv3/c1366fb4-3292-4428-9639-b73f25539794/3417bf9a-0323-4480-84ee-e1cb2ff0966b/IN-en-20240408-popsignuptwoweeks-perspective_alpha_website_small.jpg'
+        <img src={BG_URL}
         alt='logo1'/>
     </div>
-    <form className='absolute p-12 bg-black w-3/12 my-36 mx-auto left-0 right-0 text-white rounded-lg bg-opacity-80'>
+    <form onSubmit={(e) => {e.preventDefault()}} className='absolute p-12 bg-black w-3/12 my-36 mx-auto left-0 right-0 text-white rounded-lg bg-opacity-80'>
         <h1 className='font-bold text-3xl py-4'>{isSignInForm ? "Sign In" : "Sign Up"}</h1>
         {
-            !isSignInForm && <input type='text' placeholder='Full Name' className='p-4 my-4 w-full bg-gray-700'/>
+            !isSignInForm && <input ref={name} type='text' placeholder='Full Name' className='p-4 my-4 w-full bg-gray-700'/>
         }
-        <input type='text' placeholder='Email Address' className='p-4 my-4 w-full bg-gray-700'/>
+        <input ref={email} type='text' placeholder='Email Address' className='p-4 my-4 w-full bg-gray-700'/>
         
         
-        <input type='password' placeholder='Password' className='p-4 my-4 w-full bg-gray-700'/>
-        <button className='my-6 p-2 bg-red-700 w-full rounded-lg'>{isSignInForm ? "Sign In" : "Sign Up"}</button>
+        <input ref={password} type='password' placeholder='Password' className='p-4 my-4 w-full bg-gray-700'/>
+        <p className='text-red-500 font-bold text-lg py-2'>{errMessage}</p>
+        <button className='my-6 p-2 bg-red-700 w-full rounded-lg' onClick={handleButtonClick}>{isSignInForm ? "Sign In" : "Sign Up"}</button>
         <p className='p-4 cursor-pointer' onClick={toggleSignInForm}>{isSignInForm ? "New to Netflix? Sign up Now" : "Already registered? Sign In now"}</p>
     </form>
 </div>
